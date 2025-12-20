@@ -17,16 +17,16 @@ h1 {
   padding: 10px;
 }
 
-.top-actions {
+.top {
   text-align: center;
   margin-bottom: 10px;
 }
 
-.top-actions button {
-  padding: 8px 12px;
+.top button {
+  padding: 8px 14px;
+  background: #2563eb;
   border: none;
   border-radius: 6px;
-  background: #2563eb;
   color: white;
 }
 
@@ -47,10 +47,11 @@ h1 {
 .column-header {
   text-align: center;
   font-size: 16px;
+  margin-bottom: 6px;
   cursor: grab;
 }
 
-.column-header[contenteditable="true"] {
+.column-header:focus {
   outline: 1px dashed #64748b;
 }
 
@@ -86,11 +87,11 @@ h1 {
 
 <h1>📋 Meu Planejador</h1>
 
-<div class="top-actions">
+<div class="top">
   <button onclick="addColumn()">+ Nova coluna</button>
 </div>
 
-<div class="board" id="board" ondragover="allowDrop(event)" ondrop="dropColumn(event)"></div>
+<div class="board" id="board"></div>
 
 <script>
 let columnCount = 0;
@@ -98,7 +99,7 @@ const maxColumns = 15;
 let draggedCard = null;
 let draggedColumn = null;
 
-/* ADICIONA COLUNA */
+/* CRIAR COLUNA */
 function addColumn() {
   if (columnCount >= maxColumns) {
     alert("Limite máximo de 15 colunas atingido.");
@@ -111,6 +112,14 @@ function addColumn() {
 
   column.ondragstart = () => draggedColumn = column;
 
+  column.ondragover = e => e.preventDefault();
+  column.ondrop = () => {
+    if (draggedColumn && draggedColumn !== column) {
+      document.getElementById("board").insertBefore(draggedColumn, column);
+      draggedColumn = null;
+    }
+  };
+
   const header = document.createElement("div");
   header.className = "column-header";
   header.contentEditable = true;
@@ -119,7 +128,7 @@ function addColumn() {
   const cards = document.createElement("div");
   cards.className = "cards";
   cards.ondragover = e => e.preventDefault();
-  cards.ondrop = e => dropCard(e, header);
+  cards.ondrop = () => dropCard(cards, header);
 
   const btn = document.createElement("button");
   btn.textContent = "+ Nova tarefa";
@@ -133,7 +142,7 @@ function addColumn() {
   columnCount++;
 }
 
-/* ADICIONA CARTÃO */
+/* CRIAR CARTÃO */
 function addCard(container) {
   const card = document.createElement("div");
   card.className = "card";
@@ -147,33 +156,19 @@ function addCard(container) {
 }
 
 /* SOLTAR CARTÃO */
-function dropCard(ev, header) {
-  ev.preventDefault();
+function dropCard(container, header) {
   if (!draggedCard) return;
 
   draggedCard.classList.remove("done");
 
-  if (header.textContent.toLowerCase().includes("conclu")) {
+  const title = header.textContent.toLowerCase();
+  if (title.includes("conclu")) {
     draggedCard.classList.add("done");
     alert("✅ Tarefa concluída!");
   }
 
-  ev.target.appendChild(draggedCard);
+  container.appendChild(draggedCard);
   draggedCard = null;
-}
-
-/* MOVER COLUNAS */
-function allowDrop(ev) {
-  ev.preventDefault();
-}
-
-function dropColumn(ev) {
-  ev.preventDefault();
-  if (!draggedColumn) return;
-
-  const board = document.getElementById("board");
-  board.appendChild(draggedColumn);
-  draggedColumn = null;
 }
 
 /* COLUNA INICIAL */
