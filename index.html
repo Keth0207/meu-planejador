@@ -40,15 +40,9 @@ button {
   padding: 10px;
 }
 
-.column-header {
-  display: flex;
-  align-items: center;
-  cursor: grab;
-}
-
 .column-title {
-  flex: 1;
   text-align: center;
+  font-weight: bold;
 }
 
 .cards {
@@ -60,21 +54,10 @@ button {
   padding: 10px;
   margin: 8px 0;
   border-radius: 8px;
-  position: relative;
 }
 
 .card.done {
   background: #16a34a;
-}
-
-.card-title {
-  font-weight: bold;
-}
-
-.card-actions {
-  position: absolute;
-  top: 4px;
-  right: 6px;
 }
 
 .modal {
@@ -89,20 +72,15 @@ button {
 .modal-content {
   background: #1e293b;
   width: 95%;
-  max-width: 450px;
+  max-width: 480px;
   padding: 16px;
   border-radius: 10px;
 }
 
-.subtask {
-  display: flex;
-  gap: 6px;
-  margin: 4px 0;
-}
-
-.attachment {
-  font-size: 13px;
-  margin: 4px 0;
+textarea {
+  width: 100%;
+  min-height: 70px;
+  border-radius: 6px;
 }
 </style>
 </head>
@@ -110,6 +88,7 @@ button {
 <body>
 
 <h1>📋 Meu Planejador</h1>
+
 <div style="text-align:center">
   <button onclick="addColumn()">+ Nova coluna</button>
 </div>
@@ -121,83 +100,71 @@ button {
   <div class="modal-content">
     <h3 contenteditable id="modalTitle"></h3>
 
+    <h4>📝 Descrição / Links</h4>
+    <textarea id="modalDesc" placeholder="Cole aqui links do Google Drive, Docs, etc"></textarea>
+
     <h4>☑️ Subtarefas</h4>
     <div id="subtasks"></div>
     <button onclick="addSubtask()">+ Subtarefa</button>
 
-    <h4>📎 Anexos</h4>
-    <input type="file" id="fileInput">
-    <div id="attachments"></div>
+    <h4>🔗 Vincular outra tarefa</h4>
+    <button onclick="linkTask()">➕ Vincular</button>
 
-    <br>
+    <br><br>
     <button onclick="closeModal()">Fechar</button>
   </div>
 </div>
 
 <script>
-let draggedCard = null;
+let columnCount = 0;
 let activeCard = null;
 
-/* COLUNA */
 function addColumn() {
+  if (columnCount >= 25) {
+    alert("Limite máximo de 25 colunas atingido.");
+    return;
+  }
+
+  columnCount++;
+
   const col = document.createElement("div");
   col.className = "column";
-
-  const head = document.createElement("div");
-  head.className = "column-header";
-  head.draggable = true;
 
   const title = document.createElement("div");
   title.className = "column-title";
   title.contentEditable = true;
   title.textContent = "Nova coluna";
 
-  head.append(title);
-  col.append(head);
-
   const cards = document.createElement("div");
   cards.className = "cards";
-  cards.ondragover = e => e.preventDefault();
-  cards.ondrop = () => {
-    if (draggedCard) cards.appendChild(draggedCard);
-    updateDone(cards);
-  };
 
   const btn = document.createElement("button");
   btn.textContent = "+ Tarefa";
   btn.onclick = () => addCard(cards);
 
-  col.append(cards, btn);
+  col.append(title, cards, btn);
   board.appendChild(col);
 }
 
-/* CARTÃO */
 function addCard(container) {
   const card = document.createElement("div");
   card.className = "card";
-  card.draggable = true;
-  card.subtasks = [];
-  card.attachments = [];
 
-  const title = document.createElement("div");
-  title.className = "card-title";
-  title.contentEditable = true;
-  title.textContent = "Nova tarefa";
+  card.titleText = "Nova tarefa";
+  card.description = "";
+  card.subtasks = [];
+
+  card.textContent = card.titleText;
 
   card.onclick = () => openModal(card);
-  card.ondragstart = () => draggedCard = card;
-
-  card.append(title);
   container.appendChild(card);
 
   updateDone(container);
 }
 
-/* CONCLUÍDO */
 function updateDone(container) {
   const colTitle = container.parentElement
-    .querySelector(".column-title")
-    .textContent.toLowerCase();
+    .querySelector(".column-title").textContent.toLowerCase();
 
   [...container.children].forEach(card => {
     card.classList.toggle("done", colTitle.includes("conclu"));
@@ -207,62 +174,53 @@ function updateDone(container) {
 /* MODAL */
 function openModal(card) {
   activeCard = card;
-  modalTitle.innerText = card.querySelector(".card-title").innerText;
+  modalTitle.innerText = card.titleText;
+  modalDesc.value = card.description;
   renderSubtasks();
-  renderAttachments();
   modal.style.display = "flex";
 }
 
 function closeModal() {
-  activeCard.querySelector(".card-title").innerText = modalTitle.innerText;
+  activeCard.titleText = modalTitle.innerText;
+  activeCard.description = modalDesc.value;
+  activeCard.textContent = activeCard.titleText;
   modal.style.display = "none";
 }
 
 /* SUBTAREFAS */
 function addSubtask() {
-  const text = prompt("Nome da subtarefa:");
-  if (!text) return;
-  activeCard.subtasks.push({ text, done:false });
+  const txt = prompt("Nome da subtarefa:");
+  if (!txt) return;
+  activeCard.subtasks.push(txt);
   renderSubtasks();
 }
 
 function renderSubtasks() {
   subtasks.innerHTML = "";
-  activeCard.subtasks.forEach((s,i) => {
+  activeCard.subtasks.forEach(s => {
     const div = document.createElement("div");
-    div.className = "subtask";
-
-    const chk = document.createElement("input");
-    chk.type = "checkbox";
-    chk.checked = s.done;
-    chk.onchange = () => s.done = chk.checked;
-
-    const span = document.createElement("span");
-    span.textContent = s.text;
-
-    div.append(chk, span);
+    div.textContent = "☑️ " + s;
     subtasks.appendChild(div);
   });
 }
 
-/* ANEXOS */
-fileInput.onchange = () => {
-  const file = fileInput.files[0];
-  if (!file) return;
-
-  activeCard.attachments.push(file.name);
-  fileInput.value = "";
-  renderAttachments();
-};
-
-function renderAttachments() {
-  attachments.innerHTML = "";
-  activeCard.attachments.forEach(a => {
-    const div = document.createElement("div");
-    div.className = "attachment";
-    div.textContent = "📎 " + a;
-    attachments.appendChild(div);
+/* VINCULAR */
+function linkTask() {
+  const tasks = [];
+  document.querySelectorAll(".card").forEach(c => {
+    if (c !== activeCard && !c.parentElement.parentElement
+      .querySelector(".column-title").textContent.toLowerCase().includes("conclu")) {
+      tasks.push(c);
+    }
   });
+
+  const names = tasks.map((t,i) => `${i+1} - ${t.titleText}`).join("\n");
+  const pick = prompt("Escolha a tarefa para vincular:\n" + names);
+  const chosen = tasks[pick-1];
+  if (chosen) {
+    activeCard.subtasks.push("↳ " + chosen.titleText);
+    renderSubtasks();
+  }
 }
 </script>
 
