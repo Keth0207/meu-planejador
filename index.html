@@ -12,21 +12,15 @@ body {
   color: white;
 }
 
-h1 {
-  text-align: center;
-  padding: 10px;
-}
+h1 { text-align: center; padding: 10px; }
 
-.top {
-  text-align: center;
-  margin-bottom: 10px;
-}
+.top { text-align: center; margin-bottom: 10px; }
 
-.top button {
-  padding: 8px 14px;
-  background: #2563eb;
+button {
+  padding: 6px;
   border: none;
   border-radius: 6px;
+  background: #2563eb;
   color: white;
 }
 
@@ -45,19 +39,20 @@ h1 {
 }
 
 .column-header {
-  text-align: center;
-  font-size: 16px;
-  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   cursor: grab;
 }
 
-.column-header:focus {
-  outline: 1px dashed #64748b;
+.column-title {
+  flex: 1;
+  text-align: center;
 }
 
-.cards {
-  min-height: 60px;
-}
+.column-title[contenteditable] { outline: none; }
+
+.cards { min-height: 60px; }
 
 .card {
   background: #334155;
@@ -65,20 +60,16 @@ h1 {
   margin: 8px 0;
   border-radius: 8px;
   cursor: grab;
+  position: relative;
 }
 
-.card.done {
-  background: #16a34a;
-}
+.card.done { background: #16a34a; }
 
-.column button {
-  width: 100%;
-  margin-top: 6px;
-  padding: 6px;
-  border: none;
-  border-radius: 6px;
-  background: #475569;
-  color: white;
+.card .del {
+  position: absolute;
+  right: 6px;
+  top: 4px;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -94,84 +85,101 @@ h1 {
 <div class="board" id="board"></div>
 
 <script>
-let columnCount = 0;
-const maxColumns = 15;
 let draggedCard = null;
 let draggedColumn = null;
+let columnCount = 0;
+const maxColumns = 15;
 
-/* CRIAR COLUNA */
+/* COLUNA */
 function addColumn() {
-  if (columnCount >= maxColumns) {
-    alert("Limite máximo de 15 colunas atingido.");
-    return;
-  }
+  if (columnCount >= maxColumns) return alert("Máx. 15 colunas");
 
   const column = document.createElement("div");
   column.className = "column";
-  column.draggable = true;
 
-  column.ondragstart = () => draggedColumn = column;
+  const header = document.createElement("div");
+  header.className = "column-header";
+  header.draggable = true;
 
-  column.ondragover = e => e.preventDefault();
-  column.ondrop = () => {
+  header.ondragstart = () => draggedColumn = column;
+  header.ondragover = e => e.preventDefault();
+  header.ondrop = () => {
     if (draggedColumn && draggedColumn !== column) {
-      document.getElementById("board").insertBefore(draggedColumn, column);
+      board.insertBefore(draggedColumn, column);
       draggedColumn = null;
     }
   };
 
-  const header = document.createElement("div");
-  header.className = "column-header";
-  header.contentEditable = true;
-  header.textContent = "Nova coluna";
+  const title = document.createElement("div");
+  title.className = "column-title";
+  title.contentEditable = true;
+  title.textContent = "Nova coluna";
+
+  const delCol = document.createElement("span");
+  delCol.textContent = "🗑️";
+  delCol.onclick = () => {
+    if (confirm("Excluir coluna?")) column.remove();
+  };
+
+  header.appendChild(title);
+  header.appendChild(delCol);
 
   const cards = document.createElement("div");
   cards.className = "cards";
   cards.ondragover = e => e.preventDefault();
-  cards.ondrop = () => dropCard(cards, header);
+  cards.ondrop = () => dropCard(cards, title);
 
   const btn = document.createElement("button");
-  btn.textContent = "+ Nova tarefa";
+  btn.textContent = "+ Tarefa";
   btn.onclick = () => addCard(cards);
 
-  column.appendChild(header);
-  column.appendChild(cards);
-  column.appendChild(btn);
-
-  document.getElementById("board").appendChild(column);
+  column.append(header, cards, btn);
+  board.appendChild(column);
   columnCount++;
 }
 
-/* CRIAR CARTÃO */
+/* CARTÃO */
 function addCard(container) {
   const card = document.createElement("div");
   card.className = "card";
-  card.textContent = "Nova tarefa";
   card.contentEditable = true;
+  card.textContent = "Nova tarefa";
   card.draggable = true;
 
   card.ondragstart = () => draggedCard = card;
 
+  const del = document.createElement("span");
+  del.className = "del";
+  del.textContent = "❌";
+  del.onclick = () => {
+    if (confirm("Excluir tarefa?")) card.remove();
+  };
+
+  card.appendChild(del);
   container.appendChild(card);
 }
 
 /* SOLTAR CARTÃO */
-function dropCard(container, header) {
+function dropCard(container, title) {
   if (!draggedCard) return;
 
   draggedCard.classList.remove("done");
 
-  const title = header.textContent.toLowerCase();
-  if (title.includes("conclu")) {
-    draggedCard.classList.add("done");
-    alert("✅ Tarefa concluída!");
+  if (title.textContent.toLowerCase().includes("conclu")) {
+    const complemento = confirm("Essa tarefa é complemento de outra?");
+    if (!complemento) {
+      draggedCard.classList.add("done");
+    } else {
+      alert("Complemento cancelado (mantida separada)");
+      draggedCard.classList.add("done");
+    }
   }
 
   container.appendChild(draggedCard);
   draggedCard = null;
 }
 
-/* COLUNA INICIAL */
+/* inicial */
 addColumn();
 </script>
 
