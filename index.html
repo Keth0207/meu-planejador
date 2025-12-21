@@ -50,7 +50,9 @@ button {
   text-align: center;
 }
 
-.cards { min-height: 60px; }
+.cards {
+  min-height: 60px;
+}
 
 .card {
   background: #334155;
@@ -61,7 +63,9 @@ button {
   position: relative;
 }
 
-.card.done { background: #16a34a; }
+.card.done {
+  background: #16a34a;
+}
 
 .card .del {
   position: absolute;
@@ -124,7 +128,7 @@ function addColumn() {
   const cards = document.createElement("div");
   cards.className = "cards";
   cards.ondragover = e => e.preventDefault();
-  cards.ondrop = e => dropOnColumn(e, cards);
+  cards.ondrop = e => dropHandler(e, cards);
 
   const btn = document.createElement("button");
   btn.textContent = "+ Tarefa";
@@ -145,9 +149,6 @@ function addCard(container) {
 
   card.ondragstart = () => draggedCard = card;
 
-  card.ondragover = e => e.preventDefault();
-  card.ondrop = e => dropOnCard(e, card);
-
   const del = document.createElement("span");
   del.className = "del";
   del.textContent = "❌";
@@ -159,36 +160,32 @@ function addCard(container) {
   container.appendChild(card);
 }
 
-/* DROP EM CARTÃO */
-function dropOnCard(e, targetCard) {
-  e.stopPropagation();
-  if (!draggedCard || draggedCard === targetCard) return;
-
-  const confirmar = confirm("Essa tarefa é complemento da outra?");
-  if (confirmar) {
-    draggedCard.classList.add("done");
-    targetCard.after(draggedCard);
-  } else {
-    targetCard.parentElement.appendChild(draggedCard);
-  }
-
-  draggedCard = null;
-}
-
-/* DROP NA COLUNA */
-function dropOnColumn(e, container) {
+/* DROP INTELIGENTE */
+function dropHandler(e, container) {
+  e.preventDefault();
   if (!draggedCard) return;
 
-  const title = container.parentElement.querySelector(".column-title")
-    .textContent.toLowerCase();
+  const targetCard = e.target.closest(".card");
 
-  draggedCard.classList.remove("done");
+  if (targetCard && targetCard !== draggedCard) {
+    const confirmar = confirm(
+      "Essa tarefa é complemento da tarefa selecionada?"
+    );
 
-  if (title.includes("conclu")) {
-    draggedCard.classList.add("done");
+    if (confirmar) {
+      targetCard.after(draggedCard);
+    } else {
+      container.appendChild(draggedCard);
+    }
+  } else {
+    container.appendChild(draggedCard);
   }
 
-  container.appendChild(draggedCard);
+  const title = container.parentElement
+    .querySelector(".column-title")
+    .textContent.toLowerCase();
+
+  draggedCard.classList.toggle("done", title.includes("conclu"));
   draggedCard = null;
 }
 
