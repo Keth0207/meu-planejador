@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Kanban Admin</title>
+    <style>
+        :root { --primary: #026aa7; --admin: #ffca28; }
+        body { margin: 0; font-family: sans-serif; background: #f4f5f7; }
+        #login { position: fixed; inset: 0; background: var(--primary); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .box { background: white; padding: 20px; border-radius: 8px; text-align: center; }
+        header { background: var(--primary); color: white; padding: 10px; display: flex; justify-content: space-between; }
+        #board { display: flex; gap: 10px; padding: 10px; overflow-x: auto; align-items: flex-start; }
+        .column { background: #ebecf0; min-width: 260px; padding: 10px; border-radius: 5px; }
+        .card { background: white; padding: 10px; margin: 8px 0; border-radius: 4px; border-left: 5px solid #ccc; position: relative; }
+        .card.is-admin { border-left-color: var(--admin); background: #fffdf5; }
+        .admin-tag { font-size: 10px; color: #856404; font-weight: bold; }
+        input, button { margin: 5px; padding: 8px; border-radius: 4px; border: 1px solid #ddd; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="login">
+    <div class="box">
+        <h2>Entrar no Projeto</h2>
+        <input type="text" id="code" placeholder="Código de Acesso">
+        <button onclick="entrar()">Acessar</button>
+        <p style="font-size: 12px; color: #666;">Admin? Use seu código mestre.</p>
+    </div>
+</div>
+
+<header>
+    <h3 id="projName">Projeto</h3>
+    <div>
+        <button id="adminBtn" class="hidden" onclick="novaColuna()">+ Coluna (Admin)</button>
+        <button onclick="location.reload()">Sair</button>
+    </div>
+</header>
+
+<div id="board"></div>
+
+<script>
+    // CONFIGURAÇÃO DOS PROJETOS
+    const PROJETOS = {
+        "ADMIN123": { nome: "VISÃO GERAL", role: "admin" },
+        "PROJ01": { nome: "Marketing", role: "user" },
+        "PROJ02": { nome: "Financeiro", role: "user" }
+        // Adicione os outros códigos aqui até 25
+    };
+
+    let atual = null;
+
+    async function entrar() {
+        const code = document.getElementById('code').value.toUpperCase();
+        if (!PROJETOS[code]) return alert("Código inválido!");
+        
+        atual = { ...PROJETOS[code], code: code };
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('projName').innerText = atual.nome;
+        
+        if (atual.role === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
+        
+        carregarCards();
+    }
+
+    async function carregarCards() {
+        const res = await fetch('/api/notion');
+        const dados = await res.json();
+        renderizar(dados);
+    }
+
+    async function addCard(coluna) {
+        const nome = prompt("Nome da tarefa:");
+        if (!nome) return;
+
+        await fetch('/api/notion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tarefa: nome,
+                status: coluna,
+                projeto: atual.code,
+                admin: atual.role === 'admin',
+                usuario: atual.code
+            })
+        });
+        carregarCards();
+    }
+
+    function renderizar(itens) {
+        const board = document.getElementById('board');
+        board.innerHTML = "";
+        
+        // Criamos as colunas baseadas no que você definiu no Notion (Entrada, Fazendo, Feito)
+        const colunas = ["Entrada", "Fazendo", "Feito"];
+        
+        colunas.forEach(col => {
+            const div = document.createElement('div');
+            div.className = "column";
+            div.innerHTML = `<h4>${col}</h4><div id="cards-${col}"></div>
+                            <button onclick="addCard('${col}')">+ Card</button>`;
+            board.appendChild(div);
+        });
+
+        itens.forEach(item => {
+            const prop = item.properties;
+            const cardProj = prop.Projeto.rich_text[0]?.plain_text;
+            
+            // Regra: Usuário só vê o dele, Admin vê tudo
+            if (atual.role !== 'admin' && cardProj !== atual.code) return;
+
+            const card = document.createElement('div');
+            const isAdmin = prop.Admin.checkbox;
+            card.className = `card ${isAdmin ? 'is-admin' : ''}`;
+            card.innerHTML = `
+                ${isAdmin ? '<span class="admin-tag">👑 ADMIN</span>' : ''}
+                <div>${prop.Tarefa.title[0]?.plain_text}</div>
+                <small>${cardProj}</small>
+            `;
+            
+            const target = document.getElementById(`cards-${prop.Status.select.name}`);
+            if (target) target.appendChild(card);
+        });
+    }
+</script>
+</body>
+</html>
